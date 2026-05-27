@@ -161,16 +161,17 @@
           <h2 data-i18n="cta.title">Need music for your next project?</h2>
           <p data-i18n="cta.text">Send a brief, reference track or idea. Softgrain Audio will help you turn it into original music ready to use.</p>
         </div>
-        <form class="brief-form">
+        <form class="brief-form" action="contact.php" method="post" enctype="multipart/form-data">
+          <input type="hidden" name="language" value="en" />
           <div class="form-grid">
             <label><span data-i18n="form.name">Name</span><input name="name" type="text" autocomplete="name" required /></label>
             <label><span data-i18n="form.country">Country</span><input name="country" type="text" autocomplete="country-name" required /></label>
           </div>
           <label><span data-i18n="form.email">Email</span><input name="email" type="email" autocomplete="email" required /></label>
           <label><span data-i18n="form.message">Project / consultation</span><textarea name="message" rows="5" data-i18n-placeholder="form.placeholder" placeholder="Tell us about the project, mood, length, deadline, usage and references." required></textarea></label>
-          <label class="file-field"><span data-i18n="form.files">Reference files</span><input name="referenceFiles" type="file" multiple accept="audio/*,video/*,image/*,.pdf,.txt,.doc,.docx" /><small data-i18n="form.fileEmpty">Up to 5 files, 25 MB total.</small></label>
+          <label class="file-field"><span data-i18n="form.files">Reference files</span><input name="referenceFiles[]" type="file" multiple accept="audio/*,video/*,image/*,.pdf,.txt,.doc,.docx" /><small data-i18n="form.fileEmpty">Up to 5 files, 25 MB total.</small></label>
           <button class="button button-primary" type="submit" data-i18n="form.send">Send Request</button>
-          <p class="form-note" data-i18n="form.note">For now this opens your email app so you can review the brief before sending.</p>
+          <p class="form-note" data-i18n="form.note">Your request will be sent directly to Softgrain Audio.</p>
         </form>
       </section>
 
@@ -191,7 +192,6 @@
     </main>
     <script>
       (() => {
-        const contactEmail = "softgrainaudioform@gmail.com";
         const maxReferenceFiles = 5;
         const maxReferenceSizeMb = 25;
         const maxReferenceSizeBytes = maxReferenceSizeMb * 1024 * 1024;
@@ -282,13 +282,13 @@
             "form.fileCount": "Please attach up to 5 files.",
             "form.fileSize": "References can be up to 25 MB total.",
             "form.send": "Send Request",
-            "form.note": "For now this opens your email app so you can review the brief before sending.",
-            "form.opening": "Your email app should open now. Attach the selected reference files before sending.",
+            "form.note": "Your request will be sent directly to Softgrain Audio.",
+            "form.opening": "Sending your request...",
             "form.subject": "Softgrain Audio request",
             "form.project": "Project / consultation:",
             "form.references": "Reference files selected:",
             "form.none": "none",
-            "form.attachNote": "Note: please attach the selected reference files to this email before sending.",
+            "form.attachNote": "Note: reference files are attached to this request.",
             "footer.text": "Custom music, ready to license."
           },
           es: {
@@ -377,13 +377,13 @@
             "form.fileCount": "Por favor adjuntá hasta 5 archivos.",
             "form.fileSize": "Las referencias pueden pesar hasta 25 MB en total.",
             "form.send": "Enviar pedido",
-            "form.note": "Por ahora esto abre tu app de email para que puedas revisar el brief antes de enviarlo.",
-            "form.opening": "Tu app de email debería abrirse ahora. Adjuntá los archivos seleccionados antes de enviar.",
+            "form.note": "Tu pedido se enviará directamente a Softgrain Audio.",
+            "form.opening": "Enviando tu pedido...",
             "form.subject": "Pedido Softgrain Audio",
             "form.project": "Proyecto / consulta:",
             "form.references": "Archivos de referencia seleccionados:",
             "form.none": "ninguno",
-            "form.attachNote": "Nota: por favor adjuntá los archivos seleccionados a este email antes de enviarlo.",
+            "form.attachNote": "Nota: los archivos de referencia se adjuntan a este pedido.",
             "footer.text": "Música a medida, lista para licenciar."
           }
         };
@@ -405,6 +405,8 @@
           activeLanguage = language;
           localStorage.setItem("softgrain-language", language);
           document.documentElement.lang = language;
+          const languageInput = document.querySelector('input[name="language"]');
+          if (languageInput) languageInput.value = language;
           document.querySelectorAll("[data-i18n]").forEach((element) => {
             const key = element.getAttribute("data-i18n");
             element.textContent = translations[language][key] || translations.en[key] || element.textContent;
@@ -483,7 +485,7 @@
         };
 
         if (briefForm) {
-          const fileInput = briefForm.querySelector('input[name="referenceFiles"]');
+          const fileInput = briefForm.querySelector('input[name="referenceFiles[]"]');
           const fileMessage = briefForm.querySelector(".file-field small");
           const formNote = briefForm.querySelector(".form-note");
 
@@ -499,26 +501,8 @@
 
             if (validationMessage === t["form.fileCount"] || validationMessage === t["form.fileSize"]) return;
 
-            const formData = new FormData(briefForm);
-            const selectedFiles = Array.from(fileInput.files || []);
-            const subject = encodeURIComponent(`${t["form.subject"]} - ${formData.get("name") || "New brief"}`);
-            const body = encodeURIComponent([
-              `${t["form.name"]}: ${formData.get("name") || ""}`,
-              `${t["form.country"]}: ${formData.get("country") || ""}`,
-              `${t["form.email"]}: ${formData.get("email") || ""}`,
-              "",
-              t["form.project"],
-              `${formData.get("message") || ""}`,
-              "",
-              selectedFiles.length
-                ? `${t["form.references"]} ${selectedFiles.map((file) => file.name).join(", ")}`
-                : `${t["form.references"]} ${t["form.none"]}`,
-              "",
-              t["form.attachNote"]
-            ].join("\n"));
-
             formNote.textContent = t["form.opening"];
-            window.location.href = `mailto:${contactEmail}?subject=${subject}&body=${body}`;
+            briefForm.submit();
           });
         }
 

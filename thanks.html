@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Softgrain Audio | Request sent</title>
+    <link rel="icon" type="image/svg+xml" href="./public/favicon.svg" />
+    <link rel="stylesheet" href="./app/globals.css" />
+  </head>
+  <body>
+    <main>
+      <section class="cta-section section-shell section-block result-section">
+        <div class="cta-copy">
+          <p class="eyebrow">Softgrain Audio</p>
+          <h1 id="result-title">Request received.</h1>
+          <p id="result-message">Thanks. Your brief was sent successfully.</p>
+          <a class="button button-primary" href="./index.html">Back to site</a>
+        </div>
+      </section>
+    </main>
+    <script>
+      (() => {
+        const params = new URLSearchParams(window.location.search);
+        const status = params.get("status");
+        const message = params.get("message");
+        const title = document.querySelector("#result-title");
+        const text = document.querySelector("#result-message");
+
+        if (status === "error") {
+          title.textContent = "Something went wrong.";
+          text.textContent = message || "The message could not be sent. Please try again.";
+        }
+      })();
+    </script>
+  </body>
+</html>

@@ -8,7 +8,6 @@ type Language = "en" | "es";
 const maxReferenceFiles = 5;
 const maxReferenceSizeMb = 25;
 const maxReferenceSizeBytes = maxReferenceSizeMb * 1024 * 1024;
-const contactEmail = "softgrainaudioform@gmail.com";
 const socialLinks = {
   instagram: "https://www.instagram.com/softgrainaudio",
   linkedin: "https://www.linkedin.com/in/rodvicente/",
@@ -96,8 +95,8 @@ const copy = {
       placeholder: "Tell us about the project, mood, length, deadline, usage and references.",
       files: "Reference files",
       send: "Send Request",
-      note: "For now this opens your email app so you can review the brief before sending.",
-      opening: "Your email app should open now. Attach the selected reference files before sending.",
+      note: "Your request will be sent directly to Softgrain Audio.",
+      opening: "Sending your request...",
       fileEmpty: `Up to ${maxReferenceFiles} files, ${maxReferenceSizeMb} MB total.`,
       fileCount: "Please attach up to 5 files.",
       fileSize: "References can be up to 25 MB total.",
@@ -106,7 +105,7 @@ const copy = {
       project: "Project / consultation:",
       references: "Reference files selected:",
       none: "none",
-      attachNote: "Note: please attach the selected reference files to this email before sending.",
+      attachNote: "Note: reference files are attached to this request.",
     },
     footerText: "Custom music, ready to license.",
   },
@@ -191,8 +190,8 @@ const copy = {
       placeholder: "Contanos sobre el proyecto, mood, duración, fecha de entrega, uso y referencias.",
       files: "Archivos de referencia",
       send: "Enviar pedido",
-      note: "Por ahora esto abre tu app de email para que puedas revisar el brief antes de enviarlo.",
-      opening: "Tu app de email debería abrirse ahora. Adjuntá los archivos seleccionados antes de enviar.",
+      note: "Tu pedido se enviará directamente a Softgrain Audio.",
+      opening: "Enviando tu pedido...",
       fileEmpty: `Hasta ${maxReferenceFiles} archivos, ${maxReferenceSizeMb} MB en total.`,
       fileCount: "Por favor adjuntá hasta 5 archivos.",
       fileSize: "Las referencias pueden pesar hasta 25 MB en total.",
@@ -201,7 +200,7 @@ const copy = {
       project: "Proyecto / consulta:",
       references: "Archivos de referencia seleccionados:",
       none: "ninguno",
-      attachNote: "Nota: por favor adjuntá los archivos seleccionados a este email antes de enviarlo.",
+      attachNote: "Nota: los archivos de referencia se adjuntan a este pedido.",
     },
     footerText: "Música a medida, lista para licenciar.",
   },
@@ -624,28 +623,8 @@ function FinalCta({ language }: { language: Language }) {
       return;
     }
 
-    const subject = encodeURIComponent(`${t.form.subject} - ${formData.get("name") || "New brief"}`);
-    const body = encodeURIComponent(
-      [
-        `${t.form.name}: ${formData.get("name") || ""}`,
-        `${t.form.country}: ${formData.get("country") || ""}`,
-        `${t.form.email}: ${formData.get("email") || ""}`,
-        "",
-        t.form.project,
-        `${formData.get("message") || ""}`,
-        "",
-        files?.length
-          ? `${t.form.references} ${Array.from(files)
-              .map((file) => file.name)
-              .join(", ")}`
-          : `${t.form.references} ${t.form.none}`,
-        "",
-        t.form.attachNote,
-      ].join("\n"),
-    );
-
     setFormMessage(t.form.opening);
-    window.location.href = `mailto:${contactEmail}?subject=${subject}&body=${body}`;
+    form.submit();
   };
 
   return (
@@ -655,7 +634,8 @@ function FinalCta({ language }: { language: Language }) {
         <h2>{t.ctaTitle}</h2>
         <p>{t.ctaText}</p>
       </div>
-      <form className="brief-form" onSubmit={handleSubmit}>
+      <form className="brief-form" action="contact.php" method="post" encType="multipart/form-data" onSubmit={handleSubmit}>
+        <input type="hidden" name="language" value={language} />
         <div className="form-grid">
           <label>
             <span>{t.form.name}</span>
@@ -677,7 +657,7 @@ function FinalCta({ language }: { language: Language }) {
         <label className="file-field">
           <span>{t.form.files}</span>
           <input
-            name="referenceFiles"
+            name="referenceFiles[]"
             type="file"
             multiple
             accept="audio/*,video/*,image/*,.pdf,.txt,.doc,.docx"
