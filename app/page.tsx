@@ -1,8 +1,12 @@
 "use client";
 
+import type { FormEvent } from "react";
 import { useRef, useState } from "react";
 
 const navItems = ["Home", "How it works", "Custom Music", "Licensing", "Examples", "Contact"];
+const maxReferenceFiles = 5;
+const maxReferenceSizeMb = 25;
+const maxReferenceSizeBytes = maxReferenceSizeMb * 1024 * 1024;
 
 const steps = [
   {
@@ -380,17 +384,123 @@ function Licensing() {
 }
 
 function FinalCta() {
+  const [fileMessage, setFileMessage] = useState(`Up to ${maxReferenceFiles} files, ${maxReferenceSizeMb} MB total.`);
+  const [formMessage, setFormMessage] = useState("");
+
+  const validateFiles = (files: FileList | null) => {
+    const selectedFiles = Array.from(files ?? []);
+    const totalSize = selectedFiles.reduce((sum, file) => sum + file.size, 0);
+
+    if (selectedFiles.length > maxReferenceFiles) {
+      return `Please attach up to ${maxReferenceFiles} files.`;
+    }
+
+    if (totalSize > maxReferenceSizeBytes) {
+      return `References can be up to ${maxReferenceSizeMb} MB total.`;
+    }
+
+    if (!selectedFiles.length) {
+      return `Up to ${maxReferenceFiles} files, ${maxReferenceSizeMb} MB total.`;
+    }
+
+    return `${selectedFiles.length} file${selectedFiles.length === 1 ? "" : "s"} selected. ${(
+      totalSize /
+      1024 /
+      1024
+    ).toFixed(1)} MB total.`;
+  };
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+    const fileInput = form.elements.namedItem("referenceFiles") as HTMLInputElement | null;
+    const files = fileInput?.files ?? null;
+    const fileValidation = validateFiles(files);
+
+    if (fileValidation.startsWith("Please") || fileValidation.startsWith("References")) {
+      setFileMessage(fileValidation);
+      setFormMessage("");
+      return;
+    }
+
+    const subject = encodeURIComponent(`Softgrain Audio request - ${formData.get("name") || "New brief"}`);
+    const body = encodeURIComponent(
+      [
+        `Name: ${formData.get("name") || ""}`,
+        `Country: ${formData.get("country") || ""}`,
+        `Email: ${formData.get("email") || ""}`,
+        "",
+        "Project / consultation:",
+        `${formData.get("message") || ""}`,
+        "",
+        files?.length
+          ? `Reference files selected: ${Array.from(files)
+              .map((file) => file.name)
+              .join(", ")}`
+          : "Reference files selected: none",
+        "",
+        "Note: please attach the selected reference files to this email before sending.",
+      ].join("\n"),
+    );
+
+    setFormMessage("Your email app should open now. Attach the selected reference files before sending.");
+    window.location.href = `mailto:softgrainaudio@gmail.com?subject=${subject}&body=${body}`;
+  };
+
   return (
     <section className="cta-section section-shell section-block" id="contact">
-      <p className="eyebrow">Request Music</p>
-      <h2>Need music for your next project?</h2>
-      <p>
-        Send a brief, reference track or idea. Softgrain Audio will help you turn it into original
-        music ready to use.
-      </p>
-      <a className="button button-primary" href="mailto:hello@softgrainaudio.com">
-        Request Music
-      </a>
+      <div className="cta-copy">
+        <p className="eyebrow">Request Music</p>
+        <h2>Need music for your next project?</h2>
+        <p>
+          Send a brief, reference track or idea. Softgrain Audio will help you turn it into original
+          music ready to use.
+        </p>
+      </div>
+      <form className="brief-form" onSubmit={handleSubmit}>
+        <div className="form-grid">
+          <label>
+            <span>Name</span>
+            <input name="name" type="text" autoComplete="name" required />
+          </label>
+          <label>
+            <span>Country</span>
+            <input name="country" type="text" autoComplete="country-name" required />
+          </label>
+        </div>
+        <label>
+          <span>Email</span>
+          <input name="email" type="email" autoComplete="email" required />
+        </label>
+        <label>
+          <span>Project / consultation</span>
+          <textarea
+            name="message"
+            rows={5}
+            placeholder="Tell us about the project, mood, length, deadline, usage and references."
+            required
+          />
+        </label>
+        <label className="file-field">
+          <span>Reference files</span>
+          <input
+            name="referenceFiles"
+            type="file"
+            multiple
+            accept="audio/*,video/*,image/*,.pdf,.txt,.doc,.docx"
+            onChange={(event) => setFileMessage(validateFiles(event.currentTarget.files))}
+          />
+          <small>{fileMessage}</small>
+        </label>
+        <button className="button button-primary" type="submit">
+          Send Request
+        </button>
+        <p className="form-note">
+          {formMessage || "For now this opens your email app so you can review the brief before sending."}
+        </p>
+      </form>
     </section>
   );
 }
