@@ -65,6 +65,12 @@ function fail_response($message)
     exit;
 }
 
+function delivery_error_response($requestId, $detail)
+{
+    $message = 'Your request was stored with ID ' . $requestId . ', but the email delivery did not complete. ' . $detail;
+    fail_response($message);
+}
+
 register_shutdown_function(function () {
     $error = error_get_last();
 
@@ -491,5 +497,17 @@ file_put_contents(
         "\nAutoresponder detail: " . $autoResult[2] . "\n",
     FILE_APPEND
 );
+
+if ($emailStatus !== 'sent') {
+    $deliveryDetail = 'Please configure authenticated SMTP on the hosting and try again.';
+
+    if (!$sent && $internalResult[1] === 'smtp') {
+        $deliveryDetail = 'SMTP detail: ' . $internalResult[2];
+    } elseif (!$autoSent && $autoResult[1] === 'smtp') {
+        $deliveryDetail = 'SMTP detail: ' . $autoResult[2];
+    }
+
+    delivery_error_response($requestId, $deliveryDetail);
+}
 
 success_response($requestId, $emailStatus);
