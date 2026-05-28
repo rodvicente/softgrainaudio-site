@@ -97,6 +97,8 @@ const copy = {
       send: "Send Request",
       note: "Your request will be sent directly to Softgrain Audio.",
       opening: "Sending your request...",
+      sent: "Request uploaded. Opening confirmation...",
+      error: "The request could not be sent. Please try again.",
       fileEmpty: `Up to ${maxReferenceFiles} files, ${maxReferenceSizeMb} MB total.`,
       fileCount: "Please attach up to 5 files.",
       fileSize: "References can be up to 25 MB total.",
@@ -192,6 +194,8 @@ const copy = {
       send: "Enviar pedido",
       note: "Tu pedido se enviará directamente a Softgrain Audio.",
       opening: "Enviando tu pedido...",
+      sent: "Pedido subido. Abriendo confirmación...",
+      error: "El pedido no pudo enviarse. Por favor intentá de nuevo.",
       fileEmpty: `Hasta ${maxReferenceFiles} archivos, ${maxReferenceSizeMb} MB en total.`,
       fileCount: "Por favor adjuntá hasta 5 archivos.",
       fileSize: "Las referencias pueden pesar hasta 25 MB en total.",
@@ -579,10 +583,13 @@ function FinalCta({ language }: { language: Language }) {
   const t = copy[language];
   const [fileMessage, setFileMessage] = useState(t.form.fileEmpty);
   const [formMessage, setFormMessage] = useState("");
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     setFileMessage(t.form.fileEmpty);
     setFormMessage("");
+    setUploadProgress(0);
   }, [t.form.fileEmpty]);
 
   const validateFiles = (files: FileList | null) => {
@@ -612,8 +619,7 @@ function FinalCta({ language }: { language: Language }) {
     event.preventDefault();
 
     const form = event.currentTarget;
-    const formData = new FormData(form);
-    const fileInput = form.elements.namedItem("referenceFiles") as HTMLInputElement | null;
+    const fileInput = form.elements.namedItem("referenceFiles[]") as HTMLInputElement | null;
     const files = fileInput?.files ?? null;
     const fileValidation = validateFiles(files);
 
@@ -624,7 +630,48 @@ function FinalCta({ language }: { language: Language }) {
     }
 
     setFormMessage(t.form.opening);
-    form.submit();
+    setIsSubmitting(true);
+    setUploadProgress(0);
+
+    const request = new XMLHttpRequest();
+    request.open("POST", form.action);
+    request.setRequestHeader("X-Requested-With", "XMLHttpRequest");
+
+    request.upload.addEventListener("progress", (uploadEvent) => {
+      if (!uploadEvent.lengthComputable) {
+        return;
+      }
+
+      setUploadProgress(Math.max(1, Math.min(100, Math.round((uploadEvent.loaded / uploadEvent.total) * 100))));
+    });
+
+    request.addEventListener("load", () => {
+      setIsSubmitting(false);
+
+      let response: { ok?: boolean; redirect?: string; message?: string } | null = null;
+
+      try {
+        response = JSON.parse(request.responseText);
+      } catch {
+        response = null;
+      }
+
+      if (request.status >= 200 && request.status < 300 && response?.ok) {
+        setUploadProgress(100);
+        setFormMessage(t.form.sent);
+        window.location.href = response.redirect || "thanks.html?status=ok";
+        return;
+      }
+
+      setFormMessage(response?.message || t.form.error);
+    });
+
+    request.addEventListener("error", () => {
+      setIsSubmitting(false);
+      setFormMessage(t.form.error);
+    });
+
+    request.send(new FormData(form));
   };
 
   return (
@@ -661,11 +708,20 @@ function FinalCta({ language }: { language: Language }) {
             type="file"
             multiple
             accept="audio/*,video/*,image/*,.pdf,.txt,.doc,.docx"
-            onChange={(event) => setFileMessage(validateFiles(event.currentTarget.files))}
+            onChange={(event) => {
+              setFileMessage(validateFiles(event.currentTarget.files));
+              setUploadProgress(0);
+            }}
           />
           <small>{fileMessage}</small>
         </label>
-        <button className="button button-primary" type="submit">
+        <div className="upload-progress" hidden={!isSubmitting && uploadProgress === 0}>
+          <div className="upload-progress-bar">
+            <span style={{ width: `${uploadProgress}%` }} />
+          </div>
+          <strong>{uploadProgress}%</strong>
+        </div>
+        <button className="button button-primary" type="submit" disabled={isSubmitting}>
           {t.form.send}
         </button>
         <p className="form-note">{formMessage || t.form.note}</p>

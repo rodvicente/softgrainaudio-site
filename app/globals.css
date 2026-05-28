@@ -1062,6 +1062,49 @@ p {
   line-height: 1.5;
 }
 
+.upload-progress {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid rgba(182, 242, 92, 0.18);
+  border-radius: 999px;
+  background: rgba(242, 240, 234, 0.035);
+}
+
+.upload-progress[hidden] {
+  display: none;
+}
+
+.upload-progress-bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(242, 240, 234, 0.08);
+}
+
+.upload-progress-bar span {
+  display: block;
+  width: 0%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--electric-cyan), var(--grain-green));
+  transition: width 160ms ease;
+}
+
+.upload-progress strong {
+  color: rgba(242, 240, 234, 0.78);
+  font-size: 0.78rem;
+  text-align: right;
+}
+
+.brief-form .button:disabled {
+  cursor: wait;
+  opacity: 0.68;
+  transform: none;
+}
+
 .brief-form .button {
   width: fit-content;
   border: 0;

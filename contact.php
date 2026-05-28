@@ -1,46 +1,91 @@
 <?php
-declare(strict_types=1);
 
 $recipient = 'softgrainaudioform@gmail.com';
 $sender = 'no-reply@softgrainaudio.com';
 $maxFiles = 5;
 $maxTotalBytes = 25 * 1024 * 1024;
-$allowedExtensions = ['mp3', 'wav', 'aiff', 'aif', 'm4a', 'mp4', 'mov', 'jpg', 'jpeg', 'png', 'pdf', 'txt', 'doc', 'docx'];
+$allowedExtensions = array('mp3', 'wav', 'aiff', 'aif', 'm4a', 'mp4', 'mov', 'jpg', 'jpeg', 'png', 'pdf', 'txt', 'doc', 'docx');
+$isAjax = strtolower(isset($_SERVER['HTTP_X_REQUESTED_WITH']) ? $_SERVER['HTTP_X_REQUESTED_WITH'] : '') === 'xmlhttprequest';
 
-function clean_text(string $value): string
+function clean_text($value)
 {
-    return trim(str_replace(["\r", "\n"], ' ', $value));
+    return trim(str_replace(array("\r", "\n"), ' ', (string) $value));
 }
 
-function fail_response(string $message): void
+function make_request_id()
 {
+    if (function_exists('random_bytes')) {
+        return date('Ymd-His') . '-' . bin2hex(random_bytes(4));
+    }
+
+    if (function_exists('openssl_random_pseudo_bytes')) {
+        return date('Ymd-His') . '-' . bin2hex(openssl_random_pseudo_bytes(4));
+    }
+
+    return date('Ymd-His') . '-' . substr(md5(uniqid('', true)), 0, 8);
+}
+
+function fail_response($message)
+{
+    global $isAjax;
+
+    if ($isAjax) {
+        http_response_code(400);
+        header('Content-Type: application/json; charset=UTF-8');
+        echo json_encode(array('ok' => false, 'message' => $message));
+        exit;
+    }
+
     header('Location: thanks.html?status=error&message=' . rawurlencode($message));
     exit;
 }
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+function success_response($requestId)
+{
+    global $isAjax;
+
+    $redirect = 'thanks.html?status=ok&id=' . rawurlencode($requestId);
+
+    if ($isAjax) {
+        header('Content-Type: application/json; charset=UTF-8');
+        echo json_encode(array('ok' => true, 'redirect' => $redirect));
+        exit;
+    }
+
+    header('Location: ' . $redirect);
+    exit;
+}
+
+if (!isset($_SERVER['REQUEST_METHOD']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
     fail_response('Invalid request.');
 }
 
-$name = clean_text($_POST['name'] ?? '');
-$country = clean_text($_POST['country'] ?? '');
-$email = filter_var($_POST['email'] ?? '', FILTER_VALIDATE_EMAIL);
-$message = trim($_POST['message'] ?? '');
-$language = clean_text($_POST['language'] ?? 'en');
+$name = clean_text(isset($_POST['name']) ? $_POST['name'] : '');
+$country = clean_text(isset($_POST['country']) ? $_POST['country'] : '');
+$emailValue = isset($_POST['email']) ? $_POST['email'] : '';
+$email = filter_var($emailValue, FILTER_VALIDATE_EMAIL);
+$message = trim(isset($_POST['message']) ? $_POST['message'] : '');
+$language = clean_text(isset($_POST['language']) ? $_POST['language'] : 'en');
 
 if ($name === '' || $country === '' || !$email || $message === '') {
     fail_response('Please complete all required fields.');
 }
 
-$files = $_FILES['referenceFiles'] ?? null;
-$attachments = [];
+$files = isset($_FILES['referenceFiles']) ? $_FILES['referenceFiles'] : null;
+$attachments = array();
 $totalBytes = 0;
-$requestId = date('Ymd-His') . '-' . bin2hex(random_bytes(4));
+$requestId = make_request_id();
 $storageRoot = __DIR__ . DIRECTORY_SEPARATOR . 'private_submissions';
 $requestDir = $storageRoot . DIRECTORY_SEPARATOR . $requestId;
 
 if ($files && is_array($files['name'])) {
-    $fileCount = count(array_filter($files['name'], fn($fileName) => $fileName !== ''));
+    $fileCount = 0;
+
+    foreach ($files['name'] as $fileName) {
+        if ($fileName !== '') {
+            $fileCount++;
+        }
+    }
 
     if ($fileCount > $maxFiles) {
         fail_response('Please attach up to 5 files.');
@@ -68,32 +113,14 @@ if ($files && is_array($files['name'])) {
             fail_response('Reference files can be up to 25 MB total.');
         }
 
-        $attachments[] = [
+        $attachments[] = array(
             'tmp_name' => $files['tmp_name'][$index],
             'name' => $fileName,
-            'type' => $files['type'][$index] ?: 'application/octet-stream',
+            'type' => isset($files['type'][$index]) && $files['type'][$index] ? $files['type'][$index] : 'application/octet-stream',
             'size' => $fileSize,
-        ];
+        );
     }
 }
-
-$subject = 'Softgrain Audio request - ' . $name;
-
-$plainMessage = implode("\n", [
-    'Request ID: ' . $requestId,
-    'Name: ' . $name,
-    'Country: ' . $country,
-    'Email: ' . $email,
-    'Language: ' . strtoupper($language),
-    '',
-    'Project / consultation:',
-    $message,
-    '',
-    'Reference files uploaded: ' . (count($attachments) ? implode(', ', array_column($attachments, 'name')) : 'none'),
-    'Server folder: private_submissions/' . $requestId,
-]);
-
-$storedFiles = [];
 
 if (!is_dir($storageRoot) && !mkdir($storageRoot, 0755, true)) {
     fail_response('The request could not be stored. Please try again later.');
@@ -102,6 +129,8 @@ if (!is_dir($storageRoot) && !mkdir($storageRoot, 0755, true)) {
 if (!is_dir($requestDir) && !mkdir($requestDir, 0755, true)) {
     fail_response('The request could not be stored. Please try again later.');
 }
+
+$storedFiles = array();
 
 foreach ($attachments as $attachment) {
     $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', $attachment['name']);
@@ -114,28 +143,45 @@ foreach ($attachments as $attachment) {
     $storedFiles[] = $safeName;
 }
 
+$subject = 'Softgrain Audio request - ' . $name;
+$referenceText = count($storedFiles) ? implode(', ', $storedFiles) : 'none';
+
+$plainMessage = implode("\n", array(
+    'Request ID: ' . $requestId,
+    'Name: ' . $name,
+    'Country: ' . $country,
+    'Email: ' . $email,
+    'Language: ' . strtoupper($language),
+    '',
+    'Project / consultation:',
+    $message,
+    '',
+    'Reference files uploaded: ' . $referenceText,
+    'Server folder: private_submissions/' . $requestId,
+));
+
 file_put_contents($requestDir . DIRECTORY_SEPARATOR . 'submission.txt', $plainMessage . "\n");
 
-$headers = [
+$headers = array(
     'From: Softgrain Audio <' . $sender . '>',
     'Reply-To: ' . $name . ' <' . $email . '>',
     'MIME-Version: 1.0',
     'Content-Type: text/plain; charset=UTF-8',
     'X-Mailer: PHP/' . phpversion(),
-];
+);
 
-$sent = mail($recipient, $subject, $plainMessage, implode("\r\n", $headers), '-f ' . $sender);
+$sent = function_exists('mail')
+    ? @mail($recipient, $subject, $plainMessage, implode("\r\n", $headers), '-f ' . $sender)
+    : false;
 
 if (!$sent) {
-    fail_response('The message could not be sent. Please try again later.');
+    file_put_contents($requestDir . DIRECTORY_SEPARATOR . 'submission.txt', "\nInternal notification sent: no\n", FILE_APPEND);
 }
 
 $isSpanish = strtolower($language) === 'es';
-$autoSubject = $isSpanish
-    ? 'Softgrain Audio recibió tu mensaje'
-    : 'Softgrain Audio received your message';
+$autoSubject = $isSpanish ? 'Softgrain Audio recibió tu mensaje' : 'Softgrain Audio received your message';
 $autoMessage = $isSpanish
-    ? implode("\n", [
+    ? implode("\n", array(
         'Hola ' . $name . ',',
         '',
         'Gracias por contactar a Softgrain Audio.',
@@ -147,8 +193,8 @@ $autoMessage = $isSpanish
         '',
         'Saludos,',
         'Softgrain Audio',
-    ])
-    : implode("\n", [
+    ))
+    : implode("\n", array(
         'Hi ' . $name . ',',
         '',
         'Thanks for contacting Softgrain Audio.',
@@ -160,21 +206,22 @@ $autoMessage = $isSpanish
         '',
         'Best,',
         'Softgrain Audio',
-    ]);
-$autoHeaders = [
+    ));
+$autoHeaders = array(
     'From: Softgrain Audio <' . $sender . '>',
     'Reply-To: Softgrain Audio <' . $recipient . '>',
     'MIME-Version: 1.0',
     'Content-Type: text/plain; charset=UTF-8',
     'X-Mailer: PHP/' . phpversion(),
-];
-$autoSent = mail($email, $autoSubject, $autoMessage, implode("\r\n", $autoHeaders), '-f ' . $sender);
+);
+$autoSent = function_exists('mail')
+    ? @mail($email, $autoSubject, $autoMessage, implode("\r\n", $autoHeaders), '-f ' . $sender)
+    : false;
 
 file_put_contents(
     $requestDir . DIRECTORY_SEPARATOR . 'submission.txt',
-    "\nAutoresponder sent: " . ($autoSent ? 'yes' : 'no') . "\n",
+    "\nInternal notification sent: " . ($sent ? 'yes' : 'no') . "\nAutoresponder sent: " . ($autoSent ? 'yes' : 'no') . "\n",
     FILE_APPEND
 );
 
-header('Location: thanks.html?status=ok&id=' . rawurlencode($requestId));
-exit;
+success_response($requestId);
