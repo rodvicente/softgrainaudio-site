@@ -201,13 +201,13 @@ function build_email_message($to, $subject, $body, $fromEmail, $fromName, $reply
 
 function send_with_smtp($config, $to, $subject, $body, $replyToEmail, $replyToName, $attachments)
 {
-    $host = isset($config['host']) ? $config['host'] : '';
+    $host = isset($config['host']) ? trim($config['host']) : '';
     $port = isset($config['port']) ? (int) $config['port'] : 587;
-    $secure = isset($config['secure']) ? strtolower($config['secure']) : 'tls';
-    $username = isset($config['username']) ? $config['username'] : '';
-    $password = isset($config['password']) ? $config['password'] : '';
-    $fromEmail = isset($config['from_email']) ? $config['from_email'] : $username;
-    $fromName = isset($config['from_name']) ? $config['from_name'] : 'Softgrain Audio';
+    $secure = isset($config['secure']) ? strtolower(trim($config['secure'])) : 'tls';
+    $username = isset($config['username']) ? trim($config['username']) : '';
+    $password = isset($config['password']) ? preg_replace('/\s+/', '', (string) $config['password']) : '';
+    $fromEmail = isset($config['from_email']) ? trim($config['from_email']) : $username;
+    $fromName = isset($config['from_name']) ? trim($config['from_name']) : 'Softgrain Audio';
 
     if ($host === '' || $username === '' || $password === '' || $password === 'PASTE_APP_PASSWORD_HERE' || $fromEmail === '') {
         return array(false, 'SMTP config is incomplete.');
