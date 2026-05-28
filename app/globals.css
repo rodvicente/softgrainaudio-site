@@ -1064,7 +1064,7 @@ p {
 
 .upload-progress {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 48px;
+  grid-template-columns: 92px minmax(0, 1fr) 58px;
   align-items: center;
   gap: 12px;
   padding: 10px 12px;
@@ -1075,6 +1075,14 @@ p {
 
 .upload-progress[hidden] {
   display: none;
+}
+
+.upload-progress em {
+  color: rgba(242, 240, 234, 0.62);
+  font-size: 0.74rem;
+  font-style: normal;
+  font-weight: 900;
+  text-transform: uppercase;
 }
 
 .upload-progress-bar {

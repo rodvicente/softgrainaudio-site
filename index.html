@@ -171,6 +171,7 @@
           <label><span data-i18n="form.message">Project / consultation</span><textarea name="message" rows="5" data-i18n-placeholder="form.placeholder" placeholder="Tell us about the project, mood, length, deadline, usage and references." required></textarea></label>
           <label class="file-field"><span data-i18n="form.files">Reference files</span><input name="referenceFiles[]" type="file" multiple accept="audio/*,video/*,image/*,.pdf,.txt,.doc,.docx" /><small data-i18n="form.fileEmpty">Up to 5 files, 25 MB total.</small></label>
           <div class="upload-progress" hidden>
+            <em>Ready</em>
             <div class="upload-progress-bar"><span></span></div>
             <strong>0%</strong>
           </div>
@@ -288,8 +289,12 @@
             "form.send": "Send Request",
             "form.note": "Your request will be sent directly to Softgrain Audio.",
             "form.opening": "Sending your request...",
+            "form.ready": "Ready to upload",
+            "form.uploading": "Uploading",
+            "form.processing": "Processing",
             "form.sent": "Request uploaded. Opening confirmation...",
             "form.error": "The request could not be sent. Please try again.",
+            "form.serverError": "Server error. The file may exceed the upload limit configured on the hosting.",
             "form.subject": "Softgrain Audio request",
             "form.project": "Project / consultation:",
             "form.references": "Reference files selected:",
@@ -385,8 +390,12 @@
             "form.send": "Enviar pedido",
             "form.note": "Tu pedido se enviará directamente a Softgrain Audio.",
             "form.opening": "Enviando tu pedido...",
+            "form.ready": "Listo para subir",
+            "form.uploading": "Subiendo",
+            "form.processing": "Procesando",
             "form.sent": "Pedido subido. Abriendo confirmación...",
             "form.error": "El pedido no pudo enviarse. Por favor intentá de nuevo.",
+            "form.serverError": "Error del servidor. Es posible que el archivo supere el límite de subida configurado en el hosting.",
             "form.subject": "Pedido Softgrain Audio",
             "form.project": "Proyecto / consulta:",
             "form.references": "Archivos de referencia seleccionados:",
@@ -498,14 +507,18 @@
           const formNote = briefForm.querySelector(".form-note");
           const submitButton = briefForm.querySelector('button[type="submit"]');
           const progress = briefForm.querySelector(".upload-progress");
+          const progressLabel = briefForm.querySelector(".upload-progress em");
           const progressBar = briefForm.querySelector(".upload-progress-bar span");
           const progressValue = briefForm.querySelector(".upload-progress strong");
 
           fileInput.addEventListener("change", () => {
+            const t = translations[activeLanguage];
             fileMessage.textContent = validateReferenceFiles(fileInput.files);
-            progress.hidden = true;
+            const hasFiles = fileInput.files && fileInput.files.length > 0;
+            progress.hidden = !hasFiles;
+            progressLabel.textContent = t["form.ready"];
             progressBar.style.width = "0%";
-            progressValue.textContent = "0%";
+            progressValue.textContent = hasFiles ? "Ready" : "0%";
           });
 
           briefForm.addEventListener("submit", (event) => {
@@ -519,6 +532,7 @@
             formNote.textContent = t["form.opening"];
             submitButton.disabled = true;
             progress.hidden = false;
+            progressLabel.textContent = t["form.uploading"];
             progressBar.style.width = "0%";
             progressValue.textContent = "0%";
 
@@ -531,6 +545,10 @@
               const percent = Math.max(1, Math.min(100, Math.round((uploadEvent.loaded / uploadEvent.total) * 100)));
               progressBar.style.width = `${percent}%`;
               progressValue.textContent = `${percent}%`;
+
+              if (percent === 100) {
+                progressLabel.textContent = t["form.processing"];
+              }
             });
 
             request.addEventListener("load", () => {
@@ -551,11 +569,14 @@
                 return;
               }
 
-              formNote.textContent = response?.message || t["form.error"];
+              const serverMessage = response?.message || `${t["form.serverError"]} HTTP ${request.status || "unknown"}.`;
+              formNote.textContent = serverMessage;
+              progressLabel.textContent = t["form.error"];
             });
 
             request.addEventListener("error", () => {
               submitButton.disabled = false;
+              progressLabel.textContent = t["form.error"];
               formNote.textContent = t["form.error"];
             });
 

@@ -25,6 +25,24 @@ function make_request_id()
     return date('Ymd-His') . '-' . substr(md5(uniqid('', true)), 0, 8);
 }
 
+function size_to_bytes($value)
+{
+    $value = trim((string) $value);
+    $unit = strtolower(substr($value, -1));
+    $number = (float) $value;
+
+    switch ($unit) {
+        case 'g':
+            $number *= 1024;
+        case 'm':
+            $number *= 1024;
+        case 'k':
+            $number *= 1024;
+    }
+
+    return (int) $number;
+}
+
 function fail_response($message)
 {
     global $isAjax;
@@ -58,6 +76,13 @@ function success_response($requestId)
 
 if (!isset($_SERVER['REQUEST_METHOD']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
     fail_response('Invalid request.');
+}
+
+$postMaxBytes = size_to_bytes(ini_get('post_max_size'));
+$contentLength = isset($_SERVER['CONTENT_LENGTH']) ? (int) $_SERVER['CONTENT_LENGTH'] : 0;
+
+if ($postMaxBytes > 0 && $contentLength > $postMaxBytes) {
+    fail_response('The upload is larger than the server limit. Please try a smaller file or increase post_max_size on the hosting.');
 }
 
 $name = clean_text(isset($_POST['name']) ? $_POST['name'] : '');

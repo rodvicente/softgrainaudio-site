@@ -97,8 +97,12 @@ const copy = {
       send: "Send Request",
       note: "Your request will be sent directly to Softgrain Audio.",
       opening: "Sending your request...",
+      ready: "Ready to upload",
+      uploading: "Uploading",
+      processing: "Processing",
       sent: "Request uploaded. Opening confirmation...",
       error: "The request could not be sent. Please try again.",
+      serverError: "Server error. The file may exceed the upload limit configured on the hosting.",
       fileEmpty: `Up to ${maxReferenceFiles} files, ${maxReferenceSizeMb} MB total.`,
       fileCount: "Please attach up to 5 files.",
       fileSize: "References can be up to 25 MB total.",
@@ -194,8 +198,12 @@ const copy = {
       send: "Enviar pedido",
       note: "Tu pedido se enviará directamente a Softgrain Audio.",
       opening: "Enviando tu pedido...",
+      ready: "Listo para subir",
+      uploading: "Subiendo",
+      processing: "Procesando",
       sent: "Pedido subido. Abriendo confirmación...",
       error: "El pedido no pudo enviarse. Por favor intentá de nuevo.",
+      serverError: "Error del servidor. Es posible que el archivo supere el límite de subida configurado en el hosting.",
       fileEmpty: `Hasta ${maxReferenceFiles} archivos, ${maxReferenceSizeMb} MB en total.`,
       fileCount: "Por favor adjuntá hasta 5 archivos.",
       fileSize: "Las referencias pueden pesar hasta 25 MB en total.",
@@ -584,12 +592,16 @@ function FinalCta({ language }: { language: Language }) {
   const [fileMessage, setFileMessage] = useState(t.form.fileEmpty);
   const [formMessage, setFormMessage] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatus, setUploadStatus] = useState(t.form.ready);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [hasSelectedFiles, setHasSelectedFiles] = useState(false);
 
   useEffect(() => {
     setFileMessage(t.form.fileEmpty);
     setFormMessage("");
     setUploadProgress(0);
+    setUploadStatus(t.form.ready);
+    setHasSelectedFiles(false);
   }, [t.form.fileEmpty]);
 
   const validateFiles = (files: FileList | null) => {
@@ -632,6 +644,7 @@ function FinalCta({ language }: { language: Language }) {
     setFormMessage(t.form.opening);
     setIsSubmitting(true);
     setUploadProgress(0);
+    setUploadStatus(t.form.uploading);
 
     const request = new XMLHttpRequest();
     request.open("POST", form.action);
@@ -643,6 +656,10 @@ function FinalCta({ language }: { language: Language }) {
       }
 
       setUploadProgress(Math.max(1, Math.min(100, Math.round((uploadEvent.loaded / uploadEvent.total) * 100))));
+
+      if (uploadEvent.loaded >= uploadEvent.total) {
+        setUploadStatus(t.form.processing);
+      }
     });
 
     request.addEventListener("load", () => {
@@ -663,11 +680,13 @@ function FinalCta({ language }: { language: Language }) {
         return;
       }
 
-      setFormMessage(response?.message || t.form.error);
+      setUploadStatus(t.form.error);
+      setFormMessage(response?.message || `${t.form.serverError} HTTP ${request.status || "unknown"}.`);
     });
 
     request.addEventListener("error", () => {
       setIsSubmitting(false);
+      setUploadStatus(t.form.error);
       setFormMessage(t.form.error);
     });
 
@@ -711,15 +730,18 @@ function FinalCta({ language }: { language: Language }) {
             onChange={(event) => {
               setFileMessage(validateFiles(event.currentTarget.files));
               setUploadProgress(0);
+              setUploadStatus(t.form.ready);
+              setHasSelectedFiles((event.currentTarget.files?.length ?? 0) > 0);
             }}
           />
           <small>{fileMessage}</small>
         </label>
-        <div className="upload-progress" hidden={!isSubmitting && uploadProgress === 0}>
+        <div className="upload-progress" hidden={!hasSelectedFiles && !isSubmitting && uploadProgress === 0}>
+          <em>{uploadStatus}</em>
           <div className="upload-progress-bar">
             <span style={{ width: `${uploadProgress}%` }} />
           </div>
-          <strong>{uploadProgress}%</strong>
+          <strong>{uploadProgress ? `${uploadProgress}%` : "Ready"}</strong>
         </div>
         <button className="button button-primary" type="submit" disabled={isSubmitting}>
           {t.form.send}
