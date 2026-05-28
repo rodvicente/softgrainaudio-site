@@ -295,6 +295,7 @@
             "form.sent": "Request uploaded. Opening confirmation...",
             "form.error": "The request could not be sent. Please try again.",
             "form.serverError": "Server error. The file may exceed the upload limit configured on the hosting.",
+            "form.debugHint": "If this keeps happening, check php-error.log and private_submissions on the hosting.",
             "form.subject": "Softgrain Audio request",
             "form.project": "Project / consultation:",
             "form.references": "Reference files selected:",
@@ -396,6 +397,7 @@
             "form.sent": "Pedido subido. Abriendo confirmación...",
             "form.error": "El pedido no pudo enviarse. Por favor intentá de nuevo.",
             "form.serverError": "Error del servidor. Es posible que el archivo supere el límite de subida configurado en el hosting.",
+            "form.debugHint": "Si sigue pasando, revisá php-error.log y private_submissions en el hosting.",
             "form.subject": "Pedido Softgrain Audio",
             "form.project": "Proyecto / consulta:",
             "form.references": "Archivos de referencia seleccionados:",
@@ -569,7 +571,7 @@
                 return;
               }
 
-              const serverMessage = response?.message || `${t["form.serverError"]} HTTP ${request.status || "unknown"}.`;
+              const serverMessage = response?.message || `${t["form.serverError"]} HTTP ${request.status || "unknown"}. ${t["form.debugHint"]}`;
               formNote.textContent = serverMessage;
               progressLabel.textContent = t["form.error"];
             });

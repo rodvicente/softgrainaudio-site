@@ -103,6 +103,7 @@ const copy = {
       sent: "Request uploaded. Opening confirmation...",
       error: "The request could not be sent. Please try again.",
       serverError: "Server error. The file may exceed the upload limit configured on the hosting.",
+      debugHint: "If this keeps happening, check php-error.log and private_submissions on the hosting.",
       fileEmpty: `Up to ${maxReferenceFiles} files, ${maxReferenceSizeMb} MB total.`,
       fileCount: "Please attach up to 5 files.",
       fileSize: "References can be up to 25 MB total.",
@@ -204,6 +205,7 @@ const copy = {
       sent: "Pedido subido. Abriendo confirmación...",
       error: "El pedido no pudo enviarse. Por favor intentá de nuevo.",
       serverError: "Error del servidor. Es posible que el archivo supere el límite de subida configurado en el hosting.",
+      debugHint: "Si sigue pasando, revisá php-error.log y private_submissions en el hosting.",
       fileEmpty: `Hasta ${maxReferenceFiles} archivos, ${maxReferenceSizeMb} MB en total.`,
       fileCount: "Por favor adjuntá hasta 5 archivos.",
       fileSize: "Las referencias pueden pesar hasta 25 MB en total.",
@@ -681,7 +683,7 @@ function FinalCta({ language }: { language: Language }) {
       }
 
       setUploadStatus(t.form.error);
-      setFormMessage(response?.message || `${t.form.serverError} HTTP ${request.status || "unknown"}.`);
+      setFormMessage(response?.message || `${t.form.serverError} HTTP ${request.status || "unknown"}. ${t.form.debugHint}`);
     });
 
     request.addEventListener("error", () => {

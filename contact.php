@@ -7,6 +7,11 @@ $maxTotalBytes = 25 * 1024 * 1024;
 $allowedExtensions = array('mp3', 'wav', 'aiff', 'aif', 'm4a', 'mp4', 'mov', 'jpg', 'jpeg', 'png', 'pdf', 'txt', 'doc', 'docx');
 $isAjax = strtolower(isset($_SERVER['HTTP_X_REQUESTED_WITH']) ? $_SERVER['HTTP_X_REQUESTED_WITH'] : '') === 'xmlhttprequest';
 
+ini_set('log_errors', '1');
+ini_set('error_log', __DIR__ . DIRECTORY_SEPARATOR . 'php-error.log');
+ini_set('display_errors', '0');
+error_reporting(E_ALL);
+
 function clean_text($value)
 {
     return trim(str_replace(array("\r", "\n"), ' ', (string) $value));
@@ -48,7 +53,7 @@ function fail_response($message)
     global $isAjax;
 
     if ($isAjax) {
-        http_response_code(400);
+        header('HTTP/1.1 400 Bad Request');
         header('Content-Type: application/json; charset=UTF-8');
         echo json_encode(array('ok' => false, 'message' => $message));
         exit;
@@ -57,6 +62,23 @@ function fail_response($message)
     header('Location: thanks.html?status=error&message=' . rawurlencode($message));
     exit;
 }
+
+register_shutdown_function(function () {
+    $error = error_get_last();
+
+    if (!$error) {
+        return;
+    }
+
+    $fatalTypes = array(E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR);
+
+    if (!in_array($error['type'], $fatalTypes, true)) {
+        return;
+    }
+
+    $line = '[' . date('c') . '] Fatal error: ' . $error['message'] . ' in ' . $error['file'] . ':' . $error['line'] . "\n";
+    file_put_contents(__DIR__ . DIRECTORY_SEPARATOR . 'php-error.log', $line, FILE_APPEND);
+});
 
 function success_response($requestId)
 {
@@ -196,7 +218,7 @@ $headers = array(
 );
 
 $sent = function_exists('mail')
-    ? @mail($recipient, $subject, $plainMessage, implode("\r\n", $headers), '-f ' . $sender)
+    ? @mail($recipient, $subject, $plainMessage, implode("\r\n", $headers))
     : false;
 
 if (!$sent) {
@@ -240,7 +262,7 @@ $autoHeaders = array(
     'X-Mailer: PHP/' . phpversion(),
 );
 $autoSent = function_exists('mail')
-    ? @mail($email, $autoSubject, $autoMessage, implode("\r\n", $autoHeaders), '-f ' . $sender)
+    ? @mail($email, $autoSubject, $autoMessage, implode("\r\n", $autoHeaders))
     : false;
 
 file_put_contents(
