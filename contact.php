@@ -130,5 +130,51 @@ if (!$sent) {
     fail_response('The message could not be sent. Please try again later.');
 }
 
+$isSpanish = strtolower($language) === 'es';
+$autoSubject = $isSpanish
+    ? 'Softgrain Audio recibió tu mensaje'
+    : 'Softgrain Audio received your message';
+$autoMessage = $isSpanish
+    ? implode("\n", [
+        'Hola ' . $name . ',',
+        '',
+        'Gracias por contactar a Softgrain Audio.',
+        'Recibimos tu mensaje correctamente y lo vamos a revisar a la brevedad.',
+        '',
+        'ID de pedido: ' . $requestId,
+        '',
+        'Si enviaste archivos de referencia, también quedaron asociados a tu pedido.',
+        '',
+        'Saludos,',
+        'Softgrain Audio',
+    ])
+    : implode("\n", [
+        'Hi ' . $name . ',',
+        '',
+        'Thanks for contacting Softgrain Audio.',
+        'We received your message correctly and will review it shortly.',
+        '',
+        'Request ID: ' . $requestId,
+        '',
+        'If you uploaded reference files, they were also associated with your request.',
+        '',
+        'Best,',
+        'Softgrain Audio',
+    ]);
+$autoHeaders = [
+    'From: Softgrain Audio <' . $sender . '>',
+    'Reply-To: Softgrain Audio <' . $recipient . '>',
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset=UTF-8',
+    'X-Mailer: PHP/' . phpversion(),
+];
+$autoSent = mail($email, $autoSubject, $autoMessage, implode("\r\n", $autoHeaders), '-f ' . $sender);
+
+file_put_contents(
+    $requestDir . DIRECTORY_SEPARATOR . 'submission.txt',
+    "\nAutoresponder sent: " . ($autoSent ? 'yes' : 'no') . "\n",
+    FILE_APPEND
+);
+
 header('Location: thanks.html?status=ok&id=' . rawurlencode($requestId));
 exit;
