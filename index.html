@@ -563,11 +563,11 @@
                 response = null;
               }
 
-              if (request.status >= 200 && request.status < 300 && response?.ok) {
+              if (request.status >= 200 && request.status < 300) {
                 progressBar.style.width = "100%";
                 progressValue.textContent = "100%";
                 formNote.textContent = t["form.sent"];
-                window.location.href = response.redirect || "thanks.html?status=ok";
+                window.location.href = response?.redirect || "thanks.html?status=ok&email=sent";
                 return;
               }
 

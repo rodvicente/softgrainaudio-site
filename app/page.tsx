@@ -675,10 +675,10 @@ function FinalCta({ language }: { language: Language }) {
         response = null;
       }
 
-      if (request.status >= 200 && request.status < 300 && response?.ok) {
+      if (request.status >= 200 && request.status < 300) {
         setUploadProgress(100);
         setFormMessage(t.form.sent);
-        window.location.href = response.redirect || "thanks.html?status=ok";
+        window.location.href = response?.redirect || "thanks.html?status=ok&email=sent";
         return;
       }
 

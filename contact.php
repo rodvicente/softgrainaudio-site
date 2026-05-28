@@ -405,7 +405,6 @@ if (!is_dir($requestDir) && !mkdir($requestDir, 0755, true)) {
 }
 
 $storedFiles = array();
-$mailAttachments = array();
 
 foreach ($attachments as $attachment) {
     $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', $attachment['name']);
@@ -416,11 +415,6 @@ foreach ($attachments as $attachment) {
     }
 
     $storedFiles[] = $safeName;
-    $mailAttachments[] = array(
-        'path' => $destination,
-        'name' => $attachment['name'],
-        'type' => $attachment['type'],
-    );
 }
 
 $subject = 'Softgrain Audio request - ' . $name;
@@ -438,11 +432,12 @@ $plainMessage = implode("\n", array(
     '',
     'Reference files uploaded: ' . $referenceText,
     'Server folder: private_submissions/' . $requestId,
+    count($storedFiles) ? 'Note: files are stored on the hosting and are not attached to this email to avoid delivery limits.' : '',
 ));
 
 file_put_contents($requestDir . DIRECTORY_SEPARATOR . 'submission.txt', $plainMessage . "\n");
 
-$internalResult = send_email($recipient, $subject, $plainMessage, $email, $name, $mailAttachments);
+$internalResult = send_email($recipient, $subject, $plainMessage, $email, $name, array());
 $sent = $internalResult[0];
 
 $isSpanish = strtolower($language) === 'es';
