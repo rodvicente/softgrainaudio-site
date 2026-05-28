@@ -10,10 +10,11 @@
   <body>
     <main>
       <section class="cta-section section-shell section-block result-section">
-        <div class="cta-copy">
+        <div class="result-card">
           <p class="eyebrow">Softgrain Audio</p>
-          <h1 id="result-title">Request received.</h1>
-          <p id="result-message">Thanks. Your brief was sent successfully.</p>
+          <h1 id="result-title">Request recorded.</h1>
+          <p id="result-message">Thanks. Your brief was received and your reference files were uploaded.</p>
+          <p class="result-id" id="result-id"></p>
           <a class="button button-primary" href="./index.html">Back to site</a>
         </div>
       </section>
@@ -25,10 +26,16 @@
         const message = params.get("message");
         const title = document.querySelector("#result-title");
         const text = document.querySelector("#result-message");
+        const resultId = document.querySelector("#result-id");
+
+        if (params.get("id")) {
+          resultId.textContent = `Request ID: ${params.get("id")}`;
+        }
 
         if (status === "error") {
           title.textContent = "Something went wrong.";
           text.textContent = message || "The message could not be sent. Please try again.";
+          resultId.textContent = "";
         }
       })();
     </script>

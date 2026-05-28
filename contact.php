@@ -2,6 +2,7 @@
 declare(strict_types=1);
 
 $recipient = 'softgrainaudioform@gmail.com';
+$sender = 'no-reply@softgrainaudio.com';
 $maxFiles = 5;
 $maxTotalBytes = 25 * 1024 * 1024;
 $allowedExtensions = ['mp3', 'wav', 'aiff', 'aif', 'm4a', 'mp4', 'mov', 'jpg', 'jpeg', 'png', 'pdf', 'txt', 'doc', 'docx'];
@@ -34,6 +35,9 @@ if ($name === '' || $country === '' || !$email || $message === '') {
 $files = $_FILES['referenceFiles'] ?? null;
 $attachments = [];
 $totalBytes = 0;
+$requestId = date('Ymd-His') . '-' . bin2hex(random_bytes(4));
+$storageRoot = __DIR__ . DIRECTORY_SEPARATOR . 'private_submissions';
+$requestDir = $storageRoot . DIRECTORY_SEPARATOR . $requestId;
 
 if ($files && is_array($files['name'])) {
     $fileCount = count(array_filter($files['name'], fn($fileName) => $fileName !== ''));
@@ -68,14 +72,15 @@ if ($files && is_array($files['name'])) {
             'tmp_name' => $files['tmp_name'][$index],
             'name' => $fileName,
             'type' => $files['type'][$index] ?: 'application/octet-stream',
+            'size' => $fileSize,
         ];
     }
 }
 
-$boundary = 'softgrain-' . bin2hex(random_bytes(16));
 $subject = 'Softgrain Audio request - ' . $name;
 
 $plainMessage = implode("\n", [
+    'Request ID: ' . $requestId,
     'Name: ' . $name,
     'Country: ' . $country,
     'Email: ' . $email,
@@ -84,42 +89,46 @@ $plainMessage = implode("\n", [
     'Project / consultation:',
     $message,
     '',
-    'Reference files: ' . (count($attachments) ? implode(', ', array_column($attachments, 'name')) : 'none'),
+    'Reference files uploaded: ' . (count($attachments) ? implode(', ', array_column($attachments, 'name')) : 'none'),
+    'Server folder: private_submissions/' . $requestId,
 ]);
 
-$headers = [
-    'From: Softgrain Audio <no-reply@softgrainaudio.com>',
-    'Reply-To: ' . $name . ' <' . $email . '>',
-    'MIME-Version: 1.0',
-    'Content-Type: multipart/mixed; boundary="' . $boundary . '"',
-];
+$storedFiles = [];
 
-$body = '--' . $boundary . "\r\n";
-$body .= "Content-Type: text/plain; charset=UTF-8\r\n";
-$body .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
-$body .= $plainMessage . "\r\n";
-
-foreach ($attachments as $attachment) {
-    $fileContents = file_get_contents($attachment['tmp_name']);
-
-    if ($fileContents === false) {
-        fail_response('One of the reference files could not be read.');
-    }
-
-    $body .= '--' . $boundary . "\r\n";
-    $body .= 'Content-Type: ' . $attachment['type'] . '; name="' . addslashes($attachment['name']) . '"' . "\r\n";
-    $body .= 'Content-Disposition: attachment; filename="' . addslashes($attachment['name']) . '"' . "\r\n";
-    $body .= "Content-Transfer-Encoding: base64\r\n\r\n";
-    $body .= chunk_split(base64_encode($fileContents)) . "\r\n";
+if (!is_dir($storageRoot) && !mkdir($storageRoot, 0755, true)) {
+    fail_response('The request could not be stored. Please try again later.');
 }
 
-$body .= '--' . $boundary . "--\r\n";
+if (!is_dir($requestDir) && !mkdir($requestDir, 0755, true)) {
+    fail_response('The request could not be stored. Please try again later.');
+}
 
-$sent = mail($recipient, $subject, $body, implode("\r\n", $headers));
+foreach ($attachments as $attachment) {
+    $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', $attachment['name']);
+    $destination = $requestDir . DIRECTORY_SEPARATOR . $safeName;
+
+    if (!move_uploaded_file($attachment['tmp_name'], $destination)) {
+        fail_response('One of the reference files could not be stored.');
+    }
+
+    $storedFiles[] = $safeName;
+}
+
+file_put_contents($requestDir . DIRECTORY_SEPARATOR . 'submission.txt', $plainMessage . "\n");
+
+$headers = [
+    'From: Softgrain Audio <' . $sender . '>',
+    'Reply-To: ' . $name . ' <' . $email . '>',
+    'MIME-Version: 1.0',
+    'Content-Type: text/plain; charset=UTF-8',
+    'X-Mailer: PHP/' . phpversion(),
+];
+
+$sent = mail($recipient, $subject, $plainMessage, implode("\r\n", $headers), '-f ' . $sender);
 
 if (!$sent) {
     fail_response('The message could not be sent. Please try again later.');
 }
 
-header('Location: thanks.html?status=ok');
+header('Location: thanks.html?status=ok&id=' . rawurlencode($requestId));
 exit;
