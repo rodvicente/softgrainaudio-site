@@ -13,6 +13,22 @@ const socialLinks = {
   linkedin: "https://www.linkedin.com/in/rodvicente/",
 };
 
+function InstagramIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M7.8 2h8.4C19.4 2 22 4.6 22 7.8v8.4c0 3.2-2.6 5.8-5.8 5.8H7.8C4.6 22 2 19.4 2 16.2V7.8C2 4.6 4.6 2 7.8 2Zm-.2 2A3.6 3.6 0 0 0 4 7.6v8.8A3.6 3.6 0 0 0 7.6 20h8.8a3.6 3.6 0 0 0 3.6-3.6V7.6A3.6 3.6 0 0 0 16.4 4H7.6Zm9.7 1.8a1.3 1.3 0 1 1 0 2.6 1.3 1.3 0 0 1 0-2.6ZM12 7a5 5 0 1 1 0 10 5 5 0 0 1 0-10Zm0 2a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" />
+    </svg>
+  );
+}
+
+function LinkedInIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M20.4 2H3.6C2.7 2 2 2.7 2 3.6v16.8c0 .9.7 1.6 1.6 1.6h16.8c.9 0 1.6-.7 1.6-1.6V3.6c0-.9-.7-1.6-1.6-1.6ZM8 18.8H5V9.5h3v9.3ZM6.5 8.2a1.7 1.7 0 1 1 0-3.4 1.7 1.7 0 0 1 0 3.4Zm12.3 10.6h-3v-4.5c0-1.1 0-2.5-1.5-2.5s-1.8 1.2-1.8 2.4v4.6h-3V9.5h2.9v1.3h.1c.4-.8 1.4-1.5 2.8-1.5 3 0 3.6 2 3.6 4.6v4.9Z" />
+    </svg>
+  );
+}
+
 const copy = {
   en: {
     nav: [
@@ -777,10 +793,10 @@ function Footer({ language }: { language: Language }) {
       </nav>
       <div className="social-space" aria-label="Social links">
         <a href={socialLinks.instagram} target="_blank" rel="noreferrer" aria-label="Instagram">
-          IG
+          <InstagramIcon />
         </a>
         <a href={socialLinks.linkedin} target="_blank" rel="noreferrer" aria-label="LinkedIn">
-          IN
+          <LinkedInIcon />
         </a>
       </div>
     </footer>

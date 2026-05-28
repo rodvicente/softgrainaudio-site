@@ -1165,6 +1165,12 @@ p {
     color 160ms ease;
 }
 
+.social-space svg {
+  width: 17px;
+  height: 17px;
+  fill: currentColor;
+}
+
 .social-space a:hover {
   border-color: rgba(182, 242, 92, 0.42);
   background: rgba(182, 242, 92, 0.08);
