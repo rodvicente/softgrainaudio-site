@@ -33,6 +33,7 @@ const copy = {
   en: {
     nav: [
       ["Home", "home"],
+      ["About", "about"],
       ["How it works", "how-it-works"],
       ["Custom Music", "custom-music"],
       ["Licensing", "licensing"],
@@ -49,6 +50,16 @@ const copy = {
     overlayEyebrow: "Human-made custom music",
     overlayTitle: "Produced directly by Rod Vicente",
     overlayText: "Clear license included",
+    aboutEyebrow: "About",
+    aboutTitle: "About Softgrain Audio",
+    aboutLead:
+      "Softgrain Audio is a custom music studio founded by Rod Vicente, a composer, producer and music director with deep experience in the royalty-free music industry.",
+    aboutMetricPrefix: "With more than",
+    aboutMetric: "3,500 original tracks",
+    aboutMetricSuffix:
+      "created for licensing platforms, brands and media projects, Softgrain Audio offers custom-made music that is professional, flexible and ready to use.",
+    aboutFinal:
+      "We create original royalty-free music for brands, content creators, agencies, filmmakers and digital projects.",
     processEyebrow: "Process",
     processTitle: "How it works",
     steps: [
@@ -135,6 +146,7 @@ const copy = {
   es: {
     nav: [
       ["Inicio", "home"],
+      ["Sobre", "about"],
       ["Cómo funciona", "how-it-works"],
       ["Música a medida", "custom-music"],
       ["Licencias", "licensing"],
@@ -151,6 +163,16 @@ const copy = {
     overlayEyebrow: "Música personalizada hecha por humanos",
     overlayTitle: "Producida directamente por Rod Vicente",
     overlayText: "Licencia clara incluida",
+    aboutEyebrow: "Sobre",
+    aboutTitle: "Sobre Softgrain Audio",
+    aboutLead:
+      "Softgrain Audio es un estudio de música personalizada creado por Rod Vicente, compositor, productor y director musical con amplia experiencia en la industria de la música libre de licencias.",
+    aboutMetricPrefix: "Con más de",
+    aboutMetric: "3.500 tracks originales",
+    aboutMetricSuffix:
+      "creados para plataformas de licenciamiento, marcas, proyectos audiovisuales y contenido digital, Softgrain Audio ofrece música a medida con un flujo de trabajo profesional, flexible y directo.",
+    aboutFinal:
+      "Creamos música original libre de licencias para marcas, creadores de contenido, agencias, cineastas y proyectos digitales.",
     processEyebrow: "Proceso",
     processTitle: "Cómo funciona",
     steps: [
@@ -415,6 +437,29 @@ function HowItWorks({ language }: { language: Language }) {
             <p>{text}</p>
           </article>
         ))}
+      </div>
+    </section>
+  );
+}
+
+function About({ language }: { language: Language }) {
+  const t = copy[language];
+
+  return (
+    <section className="about-section section-shell section-block" id="about">
+      <div className="about-photo" aria-label="Rod Vicente portrait">
+        <img src="/rod-vicente-about.png" alt="Rod Vicente, founder of Softgrain Audio" />
+      </div>
+      <div className="about-copy">
+        <p className="eyebrow">{t.aboutEyebrow}</p>
+        <h2>{t.aboutTitle}</h2>
+        <div className="about-text">
+          <p>{t.aboutLead}</p>
+          <p>
+            {t.aboutMetricPrefix} <strong>{t.aboutMetric}</strong> {t.aboutMetricSuffix}
+          </p>
+          <p>{t.aboutFinal}</p>
+        </div>
       </div>
     </section>
   );
@@ -824,6 +869,7 @@ export default function Home() {
       <Header language={language} setLanguage={handleLanguageChange} />
       <Hero language={language} />
       <HowItWorks language={language} />
+      <About language={language} />
       <ProjectCategories language={language} />
       <Benefits language={language} />
       <Examples language={language} />
