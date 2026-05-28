@@ -13,7 +13,7 @@
         <div class="result-card">
           <p class="eyebrow">Softgrain Audio</p>
           <h1 id="result-title">Request recorded.</h1>
-          <p id="result-message">Thanks. Your brief was received and your reference files were uploaded.</p>
+          <p id="result-message">Thanks. Your brief was recorded and your reference files were uploaded.</p>
           <p class="result-id" id="result-id"></p>
           <a class="button button-primary" href="./index.html">Back to site</a>
         </div>
@@ -36,6 +36,12 @@
           title.textContent = "Something went wrong.";
           text.textContent = message || "The message could not be sent. Please try again.";
           resultId.textContent = "";
+        } else if (params.get("email") === "sent") {
+          title.textContent = "Request received.";
+          text.textContent = "Thanks. Your brief was sent successfully and your reference files were uploaded.";
+        } else if (params.get("email") === "recorded") {
+          title.textContent = "Request recorded.";
+          text.textContent = "Your brief and files were stored, but the email notification needs SMTP configuration on the server.";
         }
       })();
     </script>

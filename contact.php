@@ -6,6 +6,8 @@ $maxFiles = 5;
 $maxTotalBytes = 25 * 1024 * 1024;
 $allowedExtensions = array('mp3', 'wav', 'aiff', 'aif', 'm4a', 'mp4', 'mov', 'jpg', 'jpeg', 'png', 'pdf', 'txt', 'doc', 'docx');
 $isAjax = strtolower(isset($_SERVER['HTTP_X_REQUESTED_WITH']) ? $_SERVER['HTTP_X_REQUESTED_WITH'] : '') === 'xmlhttprequest';
+$smtpConfigPath = __DIR__ . DIRECTORY_SEPARATOR . 'smtp-config.php';
+$smtpConfig = file_exists($smtpConfigPath) ? include($smtpConfigPath) : null;
 
 ini_set('log_errors', '1');
 ini_set('error_log', __DIR__ . DIRECTORY_SEPARATOR . 'php-error.log');
@@ -80,11 +82,11 @@ register_shutdown_function(function () {
     file_put_contents(__DIR__ . DIRECTORY_SEPARATOR . 'php-error.log', $line, FILE_APPEND);
 });
 
-function success_response($requestId)
+function success_response($requestId, $emailStatus)
 {
     global $isAjax;
 
-    $redirect = 'thanks.html?status=ok&id=' . rawurlencode($requestId);
+    $redirect = 'thanks.html?status=ok&id=' . rawurlencode($requestId) . '&email=' . rawurlencode($emailStatus);
 
     if ($isAjax) {
         header('Content-Type: application/json; charset=UTF-8');
@@ -94,6 +96,234 @@ function success_response($requestId)
 
     header('Location: ' . $redirect);
     exit;
+}
+
+function smtp_read($socket)
+{
+    $response = '';
+
+    while (!feof($socket)) {
+        $line = fgets($socket, 515);
+        $response .= $line;
+
+        if (strlen($line) < 4 || substr($line, 3, 1) === ' ') {
+            break;
+        }
+    }
+
+    return $response;
+}
+
+function smtp_command($socket, $command, $expected)
+{
+    if ($command !== null) {
+        fwrite($socket, $command . "\r\n");
+    }
+
+    $response = smtp_read($socket);
+    $code = (int) substr($response, 0, 3);
+
+    if (!in_array($code, (array) $expected, true)) {
+        return array(false, trim($response));
+    }
+
+    return array(true, trim($response));
+}
+
+function encode_header($value)
+{
+    return '=?UTF-8?B?' . base64_encode($value) . '?=';
+}
+
+function email_address($email, $name)
+{
+    $email = clean_text($email);
+    $name = clean_text($name);
+
+    if ($name === '') {
+        return '<' . $email . '>';
+    }
+
+    return encode_header($name) . ' <' . $email . '>';
+}
+
+function build_email_message($to, $subject, $body, $fromEmail, $fromName, $replyToEmail, $replyToName, $attachments)
+{
+    $boundary = 'softgrain_' . md5(uniqid('', true));
+    $headers = array(
+        'From: ' . email_address($fromEmail, $fromName),
+        'To: ' . $to,
+        'Subject: ' . encode_header($subject),
+        'Reply-To: ' . email_address($replyToEmail, $replyToName),
+        'MIME-Version: 1.0',
+    );
+
+    if (!count($attachments)) {
+        $headers[] = 'Content-Type: text/plain; charset=UTF-8';
+        $headers[] = 'Content-Transfer-Encoding: 8bit';
+        return implode("\r\n", $headers) . "\r\n\r\n" . $body;
+    }
+
+    $headers[] = 'Content-Type: multipart/mixed; boundary="' . $boundary . '"';
+
+    $message = implode("\r\n", $headers) . "\r\n\r\n";
+    $message .= '--' . $boundary . "\r\n";
+    $message .= "Content-Type: text/plain; charset=UTF-8\r\n";
+    $message .= "Content-Transfer-Encoding: 8bit\r\n\r\n";
+    $message .= $body . "\r\n\r\n";
+
+    foreach ($attachments as $attachment) {
+        if (!isset($attachment['path']) || !is_file($attachment['path'])) {
+            continue;
+        }
+
+        $fileName = isset($attachment['name']) ? $attachment['name'] : basename($attachment['path']);
+        $fileType = isset($attachment['type']) ? $attachment['type'] : 'application/octet-stream';
+        $fileData = chunk_split(base64_encode(file_get_contents($attachment['path'])));
+
+        $message .= '--' . $boundary . "\r\n";
+        $message .= 'Content-Type: ' . $fileType . '; name="' . addslashes($fileName) . '"' . "\r\n";
+        $message .= "Content-Transfer-Encoding: base64\r\n";
+        $message .= 'Content-Disposition: attachment; filename="' . addslashes($fileName) . '"' . "\r\n\r\n";
+        $message .= $fileData . "\r\n";
+    }
+
+    $message .= '--' . $boundary . "--\r\n";
+
+    return $message;
+}
+
+function send_with_smtp($config, $to, $subject, $body, $replyToEmail, $replyToName, $attachments)
+{
+    $host = isset($config['host']) ? $config['host'] : '';
+    $port = isset($config['port']) ? (int) $config['port'] : 587;
+    $secure = isset($config['secure']) ? strtolower($config['secure']) : 'tls';
+    $username = isset($config['username']) ? $config['username'] : '';
+    $password = isset($config['password']) ? $config['password'] : '';
+    $fromEmail = isset($config['from_email']) ? $config['from_email'] : $username;
+    $fromName = isset($config['from_name']) ? $config['from_name'] : 'Softgrain Audio';
+
+    if ($host === '' || $username === '' || $password === '' || $fromEmail === '') {
+        return array(false, 'SMTP config is incomplete.');
+    }
+
+    $remote = ($secure === 'ssl' ? 'ssl://' : 'tcp://') . $host . ':' . $port;
+    $errorNumber = 0;
+    $errorString = '';
+    $socket = @stream_socket_client($remote, $errorNumber, $errorString, 30);
+
+    if (!$socket) {
+        return array(false, 'SMTP connection failed: ' . $errorString);
+    }
+
+    stream_set_timeout($socket, 30);
+
+    $result = smtp_command($socket, null, 220);
+    if (!$result[0]) {
+        fclose($socket);
+        return array(false, 'SMTP greeting failed: ' . $result[1]);
+    }
+
+    $serverName = isset($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : 'softgrainaudio.com';
+    $result = smtp_command($socket, 'EHLO ' . $serverName, 250);
+    if (!$result[0]) {
+        fclose($socket);
+        return array(false, 'SMTP EHLO failed: ' . $result[1]);
+    }
+
+    if ($secure === 'tls') {
+        $result = smtp_command($socket, 'STARTTLS', 220);
+        if (!$result[0]) {
+            fclose($socket);
+            return array(false, 'SMTP STARTTLS failed: ' . $result[1]);
+        }
+
+        if (!stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) {
+            fclose($socket);
+            return array(false, 'SMTP TLS negotiation failed.');
+        }
+
+        $result = smtp_command($socket, 'EHLO ' . $serverName, 250);
+        if (!$result[0]) {
+            fclose($socket);
+            return array(false, 'SMTP EHLO after TLS failed: ' . $result[1]);
+        }
+    }
+
+    $result = smtp_command($socket, 'AUTH LOGIN', 334);
+    if (!$result[0]) {
+        fclose($socket);
+        return array(false, 'SMTP AUTH failed: ' . $result[1]);
+    }
+
+    $result = smtp_command($socket, base64_encode($username), 334);
+    if (!$result[0]) {
+        fclose($socket);
+        return array(false, 'SMTP username rejected: ' . $result[1]);
+    }
+
+    $result = smtp_command($socket, base64_encode($password), 235);
+    if (!$result[0]) {
+        fclose($socket);
+        return array(false, 'SMTP password rejected: ' . $result[1]);
+    }
+
+    $result = smtp_command($socket, 'MAIL FROM:<' . $fromEmail . '>', 250);
+    if (!$result[0]) {
+        fclose($socket);
+        return array(false, 'SMTP sender rejected: ' . $result[1]);
+    }
+
+    $result = smtp_command($socket, 'RCPT TO:<' . $to . '>', array(250, 251));
+    if (!$result[0]) {
+        fclose($socket);
+        return array(false, 'SMTP recipient rejected: ' . $result[1]);
+    }
+
+    $result = smtp_command($socket, 'DATA', 354);
+    if (!$result[0]) {
+        fclose($socket);
+        return array(false, 'SMTP DATA rejected: ' . $result[1]);
+    }
+
+    $rawMessage = build_email_message($to, $subject, $body, $fromEmail, $fromName, $replyToEmail, $replyToName, $attachments);
+    $rawMessage = str_replace("\r\n.", "\r\n..", $rawMessage);
+    fwrite($socket, $rawMessage . "\r\n.\r\n");
+
+    $response = smtp_read($socket);
+    $code = (int) substr($response, 0, 3);
+
+    smtp_command($socket, 'QUIT', 221);
+    fclose($socket);
+
+    if ($code !== 250) {
+        return array(false, 'SMTP message rejected: ' . trim($response));
+    }
+
+    return array(true, 'sent');
+}
+
+function send_email($to, $subject, $body, $replyToEmail, $replyToName, $attachments)
+{
+    global $smtpConfig, $sender;
+
+    if (is_array($smtpConfig)) {
+        $result = send_with_smtp($smtpConfig, $to, $subject, $body, $replyToEmail, $replyToName, $attachments);
+        return array($result[0], 'smtp', $result[1]);
+    }
+
+    if (!function_exists('mail')) {
+        return array(false, 'mail', 'PHP mail() is not available.');
+    }
+
+    $rawMessage = build_email_message($to, $subject, $body, $sender, 'Softgrain Audio', $replyToEmail, $replyToName, $attachments);
+    $parts = explode("\r\n\r\n", $rawMessage, 2);
+    $headers = isset($parts[0]) ? $parts[0] : '';
+    $message = isset($parts[1]) ? $parts[1] : $body;
+
+    $sent = @mail($to, $subject, $message, $headers);
+
+    return array($sent, 'mail', $sent ? 'sent' : 'PHP mail() returned false or was blocked by the hosting.');
 }
 
 if (!isset($_SERVER['REQUEST_METHOD']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -178,6 +408,7 @@ if (!is_dir($requestDir) && !mkdir($requestDir, 0755, true)) {
 }
 
 $storedFiles = array();
+$mailAttachments = array();
 
 foreach ($attachments as $attachment) {
     $safeName = preg_replace('/[^A-Za-z0-9._-]/', '_', $attachment['name']);
@@ -188,6 +419,11 @@ foreach ($attachments as $attachment) {
     }
 
     $storedFiles[] = $safeName;
+    $mailAttachments[] = array(
+        'path' => $destination,
+        'name' => $attachment['name'],
+        'type' => $attachment['type'],
+    );
 }
 
 $subject = 'Softgrain Audio request - ' . $name;
@@ -209,21 +445,8 @@ $plainMessage = implode("\n", array(
 
 file_put_contents($requestDir . DIRECTORY_SEPARATOR . 'submission.txt', $plainMessage . "\n");
 
-$headers = array(
-    'From: Softgrain Audio <' . $sender . '>',
-    'Reply-To: ' . $name . ' <' . $email . '>',
-    'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset=UTF-8',
-    'X-Mailer: PHP/' . phpversion(),
-);
-
-$sent = function_exists('mail')
-    ? @mail($recipient, $subject, $plainMessage, implode("\r\n", $headers))
-    : false;
-
-if (!$sent) {
-    file_put_contents($requestDir . DIRECTORY_SEPARATOR . 'submission.txt', "\nInternal notification sent: no\n", FILE_APPEND);
-}
+$internalResult = send_email($recipient, $subject, $plainMessage, $email, $name, $mailAttachments);
+$sent = $internalResult[0];
 
 $isSpanish = strtolower($language) === 'es';
 $autoSubject = $isSpanish ? 'Softgrain Audio recibió tu mensaje' : 'Softgrain Audio received your message';
@@ -254,21 +477,19 @@ $autoMessage = $isSpanish
         'Best,',
         'Softgrain Audio',
     ));
-$autoHeaders = array(
-    'From: Softgrain Audio <' . $sender . '>',
-    'Reply-To: Softgrain Audio <' . $recipient . '>',
-    'MIME-Version: 1.0',
-    'Content-Type: text/plain; charset=UTF-8',
-    'X-Mailer: PHP/' . phpversion(),
-);
-$autoSent = function_exists('mail')
-    ? @mail($email, $autoSubject, $autoMessage, implode("\r\n", $autoHeaders))
-    : false;
+$autoResult = send_email($email, $autoSubject, $autoMessage, $recipient, 'Softgrain Audio', array());
+$autoSent = $autoResult[0];
+$emailStatus = ($sent && $autoSent && $internalResult[1] === 'smtp' && $autoResult[1] === 'smtp') ? 'sent' : 'recorded';
 
 file_put_contents(
     $requestDir . DIRECTORY_SEPARATOR . 'submission.txt',
-    "\nInternal notification sent: " . ($sent ? 'yes' : 'no') . "\nAutoresponder sent: " . ($autoSent ? 'yes' : 'no') . "\n",
+    "\nInternal notification sent: " . ($sent ? 'yes' : 'no') .
+        "\nInternal method: " . $internalResult[1] .
+        "\nInternal detail: " . $internalResult[2] .
+        "\nAutoresponder sent: " . ($autoSent ? 'yes' : 'no') .
+        "\nAutoresponder method: " . $autoResult[1] .
+        "\nAutoresponder detail: " . $autoResult[2] . "\n",
     FILE_APPEND
 );
 
-success_response($requestId);
+success_response($requestId, $emailStatus);
