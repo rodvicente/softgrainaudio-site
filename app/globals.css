@@ -1434,12 +1434,15 @@ p {
   width: 100%;
 }
 
-.result-section {
+.result-section,
+.result-section.cta-section {
   min-height: 72vh;
   display: grid;
   grid-template-columns: 1fr;
   place-items: center;
   text-align: center;
+  justify-items: center;
+  align-items: center;
 }
 
 .result-card {
@@ -1448,15 +1451,18 @@ p {
   justify-items: center;
   gap: 18px;
   margin: 0 auto;
+  text-align: center;
 }
 
 .result-card h1 {
   max-width: 10ch;
   text-align: center;
+  margin-inline: auto;
 }
 
 .result-card p {
   max-width: 520px;
+  margin-inline: auto;
 }
 
 .result-card .button {
