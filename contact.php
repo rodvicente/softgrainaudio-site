@@ -209,7 +209,7 @@ function send_with_smtp($config, $to, $subject, $body, $replyToEmail, $replyToNa
     $fromEmail = isset($config['from_email']) ? $config['from_email'] : $username;
     $fromName = isset($config['from_name']) ? $config['from_name'] : 'Softgrain Audio';
 
-    if ($host === '' || $username === '' || $password === '' || $fromEmail === '') {
+    if ($host === '' || $username === '' || $password === '' || $password === 'PASTE_APP_PASSWORD_HERE' || $fromEmail === '') {
         return array(false, 'SMTP config is incomplete.');
     }
 
@@ -313,23 +313,14 @@ function send_email($to, $subject, $body, $replyToEmail, $replyToName, $attachme
 {
     global $smtpConfig, $sender;
 
+    if (!is_array($smtpConfig)) {
+        return array(false, 'smtp', 'Missing smtp-config.php on the hosting.');
+    }
+
     if (is_array($smtpConfig)) {
         $result = send_with_smtp($smtpConfig, $to, $subject, $body, $replyToEmail, $replyToName, $attachments);
         return array($result[0], 'smtp', $result[1]);
     }
-
-    if (!function_exists('mail')) {
-        return array(false, 'mail', 'PHP mail() is not available.');
-    }
-
-    $rawMessage = build_email_message($to, $subject, $body, $sender, 'Softgrain Audio', $replyToEmail, $replyToName, $attachments);
-    $parts = explode("\r\n\r\n", $rawMessage, 2);
-    $headers = isset($parts[0]) ? $parts[0] : '';
-    $message = isset($parts[1]) ? $parts[1] : $body;
-
-    $sent = @mail($to, $subject, $message, $headers);
-
-    return array($sent, 'mail', $sent ? 'sent' : 'PHP mail() returned false or was blocked by the hosting.');
 }
 
 if (!isset($_SERVER['REQUEST_METHOD']) || $_SERVER['REQUEST_METHOD'] !== 'POST') {

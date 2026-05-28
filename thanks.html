@@ -7,33 +7,56 @@
     <link rel="icon" type="image/svg+xml" href="./public/favicon.svg" />
     <link rel="stylesheet" href="./app/globals.css" />
     <style>
-      .result-section.cta-section {
-        min-height: 72vh;
-        display: grid;
-        grid-template-columns: 1fr;
-        place-items: center;
-        text-align: center;
+      html,
+      body {
+        min-height: 100%;
+      }
+
+      body {
+        display: grid !important;
+        place-items: center !important;
+      }
+
+      main {
+        width: 100%;
+      }
+
+      .result-section {
+        width: min(1180px, calc(100% - 40px)) !important;
+        min-height: 72vh !important;
+        margin: 0 auto !important;
+        padding: 96px 28px !important;
+        display: grid !important;
+        grid-template-columns: 1fr !important;
+        place-items: center !important;
+        text-align: center !important;
+        border: 1px solid rgba(182, 242, 92, 0.18);
+        border-radius: 8px;
+        background:
+          radial-gradient(circle at 50% 0%, rgba(182, 242, 92, 0.14), transparent 25rem),
+          rgba(7, 8, 9, 0.62);
       }
 
       .result-card {
-        width: min(100%, 680px);
-        margin: 0 auto;
-        display: grid;
-        justify-items: center;
-        gap: 18px;
-        text-align: center;
+        width: min(100%, 680px) !important;
+        margin: 0 auto !important;
+        display: grid !important;
+        justify-items: center !important;
+        gap: 18px !important;
+        text-align: center !important;
       }
 
       .result-card h1,
       .result-card p {
-        margin-inline: auto;
-        text-align: center;
+        margin-left: auto !important;
+        margin-right: auto !important;
+        text-align: center !important;
       }
     </style>
   </head>
   <body>
     <main>
-      <section class="cta-section section-shell section-block result-section">
+      <section class="result-section">
         <div class="result-card">
           <p class="eyebrow">Softgrain Audio</p>
           <h1 id="result-title">Request recorded.</h1>
