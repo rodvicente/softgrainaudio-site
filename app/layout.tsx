@@ -1,5 +1,18 @@
 import type { Metadata } from "next";
+import { Inter, Oswald } from "next/font/google";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800", "900"],
+  variable: "--font-inter",
+});
+
+const oswald = Oswald({
+  subsets: ["latin"],
+  weight: ["600", "700"],
+  variable: "--font-oswald",
+});
 
 export const metadata: Metadata = {
   title: "Softgrain Audio | Custom music, ready to license",
@@ -17,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body className={`${inter.variable} ${oswald.variable}`}>{children}</body>
     </html>
   );
 }
